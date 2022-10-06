@@ -88,7 +88,7 @@ class ShopsViewset(viewsets.ModelViewSet):
     serializer_class = ShopsSerializer
 
     @action(methods=['get'], detail=False)
-    def by_client(self, request):
+    def by_client_and_status(self, request):
         cli = request.data['cli']
         try:
             sts = request.data['sts']
@@ -102,3 +102,72 @@ class ShopsViewset(viewsets.ModelViewSet):
 class ShopItemsViewset(viewsets.ModelViewSet):
     queryset = ShopItems.objects.all()
     serializer_class = ShopItemsSerializer
+    
+    @action(methods=['post'], detail=False)
+    def add(self, request):
+        client = request.data['client']
+        items = request.data['items']
+        try:
+            shp = Shops.objects.get(client_id=client, status='opened')
+        except:
+            shp = Shops.objects.create(client_id=client, status='opened')
+        
+        for i in items:
+            prod = Products.objects.get(id=i['product'])
+            if prod.discount:
+                price = prod.discount
+            else:
+                price = prod.price
+            ShopItems.objects.create(shop=shp, product=i['product'], quantity=i['quantity'], total=price*int(i['quantity']))
+            shp.total += price*int(i['quantity'])
+        shp.save()
+
+
+    @action(methods=['post'], detail=False)
+    def add_one_by_one(self, request):
+        client = request.data['client']
+        product = request.data['product']
+        quantity = int(request.data['quantity'])
+        try:
+            shp = Shops.objects.get(client_id=client, status='opened')
+        except:
+            shp = Shops.objects.create(client_id=client, status='opened')
+        prod = Products.objects.get(id=product)
+        if prod.discount:
+            price = prod.discount
+        else:
+            price = prod.price
+        items = shp.shop_item.all()
+        result = False
+        for i in items:
+            if i.product == prod:
+                item = i
+                result = True
+                break
+        if result:
+            item.quantity += quantity
+            item.total += price * quantity
+            item.save()
+        else:
+            item = ShopItems.objects.create(shop=shp, product=prod, quantity=quantity, total=price*quantity)
+        shp.total += price*quantity
+        shp.save()
+
+        dt = self.get_serializer_class()(item).data
+
+        return Response(dt)
+
+
+    @action(methods=['post'], detail=False)
+    def delete_item(self, request):
+        item = request.data['item']
+
+        item = ShopItems.objects.get(id=item)
+        shop = item.shop
+        shop.total -= item.total
+        shop.save()
+        item.delete()
+
+        dt = ShopsSerializer(shop).data
+
+        return Response(dt)
