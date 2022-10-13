@@ -21,6 +21,24 @@ class UserAdmin(BaseUserAdmin):
 admin.site.register(Users, UserAdmin)
 
 admin.site.register(Categories)
-admin.site.register(Products)
-admin.site.register(Shops)
-admin.site.register(ShopItems)
+
+
+
+@admin.register(Products)
+class ProductsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'category', 'name', 'price', 'discount', 'description')
+    list_display_links = ('id', 'category')
+
+
+@admin.register(Shops)
+class ShopsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'client', 'total', 'status', 'date')
+    list_display_links = ('id', 'client')
+    list_filter = ('status',)
+    date_hierarchy = 'date'
+
+
+@admin.register(ShopItems)
+class ShopItemsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'shop', 'product', 'quantity', 'total')
+    list_display_links = ('id', 'shop')
